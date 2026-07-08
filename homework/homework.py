@@ -92,7 +92,6 @@
 # {'type': 'cm_matrix', 'dataset': 'train', 'true_0': {"predicted_0": 15562, "predicte_1": 666}, 'true_1': {"predicted_0": 3333, "predicted_1": 1444}}
 # {'type': 'cm_matrix', 'dataset': 'test', 'true_0': {"predicted_0": 15562, "predicte_1": 650}, 'true_1': {"predicted_0": 2490, "predicted_1": 1420}}
 #
-
 import pandas as pd
 import os
 import gzip
@@ -110,7 +109,9 @@ def load_dataset(path: str) -> pd.DataFrame:
 
 def clean_dataset(df: pd.DataFrame) -> pd.DataFrame:
     df = df.rename(columns={"default payment next month": "default"})
-    df = df.drop(columns=["ID"])
+    if "ID" in df.columns:
+        df = df.drop(columns=["ID"])
+    # Limpieza necesaria para este dataset
     df = df.loc[df["MARRIAGE"] != 0] 
     df = df.loc[df["EDUCATION"] != 0] 
     df["EDUCATION"] = df["EDUCATION"].apply(lambda x: x if x < 4 else 4)
@@ -130,20 +131,19 @@ def create_pipeline() -> Pipeline:
     )
 
 def create_estimator(pipeline: Pipeline) -> GridSearchCV:
+
     param_grid = {
-        "classifier__n_estimators": [50, 100, 200],
-        "classifier__max_depth": [None, 5, 10, 20],
-        "classifier__min_samples_split": [2, 5, 10],
-        "classifier__min_samples_leaf": [1, 2, 4],
+        "classifier__n_estimators": [150],
+        "classifier__max_depth": [None],
+        "classifier__min_samples_leaf": [1, 2]
     }
 
     return GridSearchCV(
         pipeline,
         param_grid,
-        cv=10,
+        cv=5, 
         scoring="balanced_accuracy",
         n_jobs=-1,
-        verbose=2,
         refit=True,
     )
 
@@ -156,10 +156,10 @@ def calculate_precision_metrics(dataset_name: str, y_true, y_pred) -> dict:
     return {
         "type": "metrics",
         "dataset": dataset_name,
-        "precision": precision_score(y_true, y_pred, zero_division=0),
-        "balanced_accuracy": balanced_accuracy_score(y_true, y_pred),
-        "recall": recall_score(y_true, y_pred, zero_division=0),
-        "f1_score": f1_score(y_true, y_pred, zero_division=0),
+        "precision": float(precision_score(y_true, y_pred, zero_division=0)),
+        "balanced_accuracy": float(balanced_accuracy_score(y_true, y_pred)),
+        "recall": float(recall_score(y_true, y_pred, zero_division=0)),
+        "f1_score": float(f1_score(y_true, y_pred, zero_division=0)),
     }
 
 def calculate_confusion_metrics(dataset_name: str, y_true, y_pred) -> dict:
@@ -189,7 +189,6 @@ def main():
     y_train = train_df["default"]
 
     pipeline = create_pipeline()
-
     estimator = create_estimator(pipeline)
     estimator.fit(x_train, y_train)
 
